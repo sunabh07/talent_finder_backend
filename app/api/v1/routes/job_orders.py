@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 
 from app.controllers.job_order_controller import JobOrderController, SubmissionController
 from app.core.deps import DbSession, TenantScopeDep
@@ -18,6 +18,7 @@ from app.schemas.job_order import (
     ShortlistRequest,
     ShortlistResult,
 )
+from app.services.job_cv_evidence_service import JobCvEvidence, job_cv_evidence
 
 router = APIRouter(prefix="/job-orders", tags=["Job Orders"])
 
@@ -135,6 +136,16 @@ def match_candidates(
     db: DbSession, scope: TenantScopeDep, job_order_id: JobOrderId, query: ListQueryDep
 ) -> MatchPage:
     return JobOrderController(db).match_candidates(scope, job_order_id, query)
+
+
+@router.post("/{job_order_id}/cv-evidence", response_model=list[JobCvEvidence])
+def show_cv_evidence(
+    db: DbSession,
+    scope: TenantScopeDep,
+    job_order_id: JobOrderId,
+    page: Annotated[int, Query(ge=1)] = 1,
+) -> list[JobCvEvidence]:
+    return job_cv_evidence(db, scope, job_order_id, page)
 
 
 @router.post(

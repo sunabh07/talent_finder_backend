@@ -9,10 +9,14 @@ tenant is then a required argument all the way down to the repository.
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Path, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile, status
+from pydantic import TypeAdapter
+from pydantic import ValidationError as SchemaError
 
 from app.controllers.candidate_controller import CandidateController
+from app.core.config import settings
 from app.core.deps import DbSession, TenantScopeDep
+from app.core.errors import ValidationError
 from app.core.pagination import ListQuery, list_query_params
 from app.schemas.candidate import (
     CandidateCreate,
@@ -23,11 +27,14 @@ from app.schemas.candidate import (
     CvUploadResult,
 )
 from app.schemas.common import ErrorResponse, Page
+from app.schemas.cv_parse import CvEvidence, CvParseResult
+from app.services.cv_parse_service import parse_cv
 
 router = APIRouter(prefix="/candidates", tags=["Candidates"])
 
 ListQueryDep = Annotated[ListQuery, Depends(list_query_params)]
 CandidateId = Annotated[int, Path(ge=1)]
+CV_EVIDENCE_ADAPTER = TypeAdapter(CvEvidence)
 
 TENANT_ERRORS: dict[int | str, dict] = {
     400: {"model": ErrorResponse, "description": "X-Tenant-ID missing or malformed"},
@@ -127,12 +134,20 @@ def delete_candidate(db: DbSession, scope: TenantScopeDep, candidate_id: Candida
 # --- CV ---------------------------------------------------------------------
 
 
+@router.post("/cv/parse", response_model=CvParseResult, summary="Preview fields from a CV")
+def preview_cv(
+    scope: TenantScopeDep,
+    file: Annotated[UploadFile, File(description="CV file (.pdf or .docx)")],
+) -> CvParseResult:
+    return parse_cv(file.filename, file.file.read(settings.max_cv_size_bytes + 1))
+
+
 @router.post(
     "/{candidate_id}/cv",
     response_model=CvUploadResult,
     summary="Attach or replace a CV",
     description=(
-        "Accepts .pdf or .docx. The file is validated by extension, magic bytes and "
+        "Accepts .pdf or .docx. The file is validated by extension, file format and "
         "size, and the stored MIME type is derived from the signature rather than "
         "from the client's Content-Type."
     ),
@@ -143,9 +158,14 @@ async def upload_cv(
     scope: TenantScopeDep,
     candidate_id: CandidateId,
     file: Annotated[UploadFile, File(description="CV file (.pdf or .docx)")],
+    evidence: Annotated[str | None, Form(max_length=6000)] = None,
 ) -> CvUploadResult:
-    content = await file.read()
-    return CandidateController(db).attach_cv(scope, candidate_id, file.filename, content)
+    content = await file.read(settings.max_cv_size_bytes + 1)
+    try:
+        excerpts = CV_EVIDENCE_ADAPTER.validate_json(evidence) if evidence is not None else None
+    except SchemaError:
+        raise ValidationError("The extracted CV evidence is invalid.") from None
+    return CandidateController(db).attach_cv(scope, candidate_id, file.filename, content, excerpts)
 
 
 @router.get(
@@ -153,7 +173,13 @@ async def upload_cv(
     summary="Download a CV",
     response_class=Response,
     responses={
-        200: {"content": {"application/pdf": {}}, "description": "The stored CV file"},
+        200: {
+            "content": {
+                "application/pdf": {},
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
+            },
+            "description": "The stored CV file",
+        },
         **TENANT_ERRORS,
     },
 )

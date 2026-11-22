@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,8 +38,8 @@ class Settings(BaseSettings):
     max_cv_size_mb: int = 10
 
     # --- AI (Story 7, optional) -------------------------------------------
-    ai_provider: str | None = None
-    ai_api_key: str | None = None
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-3.8-flash"
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -47,11 +48,11 @@ class Settings(BaseSettings):
 
     @property
     def ai_enabled(self) -> bool:
-        return bool(self.ai_provider and self.ai_api_key)
+        return bool(self.gemini_api_key and self.gemini_api_key.get_secret_value().strip())
 
     @property
     def max_cv_size_bytes(self) -> int:
-        return self.max_cv_size_mb * 1024 * 1024
+        return int(self.max_cv_size_mb * 1024 * 1024)
 
 
 @lru_cache

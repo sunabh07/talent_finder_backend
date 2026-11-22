@@ -209,7 +209,7 @@ Documented in [`.env.example`](.env.example).
 | `CORS_ORIGINS` | Comma-separated origins allowed to call the API |
 | `DEFAULT_PAGE_SIZE` / `MAX_PAGE_SIZE` | Pagination bounds |
 | `MAX_CV_SIZE_MB` | CV upload limit |
-| `AI_PROVIDER` / `AI_API_KEY` | Optional AI features. Blank = disabled, and everything still works |
+| `GEMINI_API_KEY` / `GEMINI_MODEL` | Optional CV autofill. With no key, enter candidate details manually. |
 
 ---
 
@@ -219,7 +219,12 @@ Documented in [`.env.example`](.env.example).
 - **CV files are stored in PostgreSQL** as `BYTEA`, mapped `deferred` so the bytes are never
   fetched unless explicitly requested. Deliberate, to keep the project to one stateful
   dependency; production would use object storage.
-- **No CV parsing or AI.** Optional in the brief, which states twice that manual entry scores the
-  same. Adapters are designed for it but not implemented.
+- **CV autofill and job evidence are optional.** Run `alembic upgrade head`, set
+  `GEMINI_API_KEY` in the backend `.env`, and restart the API. On Add Candidate,
+  download and choose a fictional PDF or DOCX. Autofill starts automatically.
+  Review the draft before saving. The API logs CV validation, extraction, and
+  Gemini outcomes. On a matching demo job, click **Show AI suggestions**
+  to connect CV project excerpts to job requirements on the current page. Use fictional CVs
+  and job descriptions with unpaid Gemini access.
 - **Duplicate candidates are allowed** — two people can share a name and email is optional, so
   there is no reliable natural key.

@@ -93,7 +93,8 @@ class CandidateService:
     # --- CV --------------------------------------------------------------
 
     def attach_cv(
-        self, scope: TenantScope, candidate_id: int, filename: str | None, content: bytes
+        self, scope: TenantScope, candidate_id: int, filename: str | None, content: bytes,
+        evidence: list[str] | None = None,
     ) -> Candidate:
         candidate = self.get_candidate(scope, candidate_id)
         upload: ValidatedUpload = validate_cv(filename, content)
@@ -104,6 +105,7 @@ class CandidateService:
         candidate.cv_mime_type = upload.mime_type
         candidate.cv_size_bytes = upload.size_bytes
         candidate.cv_data = upload.content
+        candidate.cv_evidence = evidence or None
 
         self.session.commit()
         self.session.refresh(candidate)
@@ -138,4 +140,5 @@ class CandidateService:
         candidate.cv_mime_type = None
         candidate.cv_size_bytes = None
         candidate.cv_data = None
+        candidate.cv_evidence = None
         self.session.commit()

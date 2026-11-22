@@ -33,6 +33,16 @@ DEFAULT_SORT = "full_name"
 
 
 class CandidateRepository(BaseRepository):
+    def cv_evidence_for(self, tenant_id: int, candidate_ids: list[int]) -> dict[int, list[str]]:
+        if not candidate_ids:
+            return {}
+        stmt = select(Candidate.id, Candidate.cv_evidence).where(
+            Candidate.tenant_id == tenant_id,
+            Candidate.id.in_(candidate_ids),
+            Candidate.cv_evidence.is_not(None),
+        )
+        return {candidate_id: items for candidate_id, items in self.session.execute(stmt) if items}
+
     # --- Reads -------------------------------------------------------------
 
     def get(self, tenant_id: int, candidate_id: int) -> Candidate | None:

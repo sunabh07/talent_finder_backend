@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -68,6 +69,7 @@ class Candidate(Base, TimestampMixin):
     # them explicitly. This makes "no CV bytes in list responses" a property of
     # the mapping rather than a rule each endpoint has to remember.
     cv_data: Mapped[bytes | None] = mapped_column(LargeBinary, deferred=True)
+    cv_evidence: Mapped[list[str] | None] = mapped_column(JSONB(none_as_null=True), deferred=True)
 
     skills: Mapped[list[Skill]] = relationship(
         secondary=candidate_skills,

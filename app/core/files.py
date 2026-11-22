@@ -16,6 +16,8 @@ junk, not about sandboxing.
 """
 
 from dataclasses import dataclass
+from io import BytesIO
+from zipfile import BadZipFile, ZipFile
 
 from app.core.config import settings
 from app.core.errors import ValidationError
@@ -87,6 +89,14 @@ def validate_cv(filename: str | None, content: bytes) -> ValidatedUpload:
             f"The file is named '{extension}' but its contents are {detected_extension}.",
             {"field": "file", "named": extension, "detected": detected_extension},
         )
+
+    if extension == ".docx":
+        try:
+            with ZipFile(BytesIO(content)) as archive:
+                archive.getinfo("[Content_Types].xml")
+                archive.getinfo("word/document.xml")
+        except (BadZipFile, KeyError):
+            raise ValidationError("The DOCX is missing its Word document content.") from None
 
     # Strip any directory component a client may have sent along with the name.
     base_name = safe_name.replace("\\", "/").rsplit("/", 1)[-1][:255]

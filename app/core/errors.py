@@ -38,6 +38,11 @@ class NotFoundError(AppError):
     code = "NOT_FOUND"
 
 
+class AiUnavailableError(AppError):
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    code = "AI_UNAVAILABLE"
+
+
 class ValidationError(AppError):
     status_code = HTTP_422
     code = "VALIDATION_ERROR"
