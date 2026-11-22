@@ -8,10 +8,13 @@ could be driven by a CLI, a background job or a test without a web server.
 from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError
+from app.core.logging import get_logger
 from app.core.pagination import ListQuery
 from app.models.enums import TenantStatus
 from app.models.tenant import Tenant
 from app.repositories.tenant_repository import TenantRepository
+
+logger = get_logger(__name__)
 
 
 class TenantService:
@@ -54,4 +57,10 @@ class TenantService:
         self.repo.add(tenant)
         self.session.commit()
         self.session.refresh(tenant)
+        logger.info(
+            "Tenant created: %s (id=%s)",
+            tenant.name,
+            tenant.id,
+            extra={"tenant_name": tenant.name, "created_tenant_id": tenant.id},
+        )
         return tenant

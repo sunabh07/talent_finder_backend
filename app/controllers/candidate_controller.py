@@ -53,7 +53,11 @@ class CandidateController:
         return CandidateStats(total=total, added_this_week=added_this_week, with_cv=with_cv)
 
     def attach_cv(
-        self, scope: TenantScope, candidate_id: int, filename: str | None, content: bytes,
+        self,
+        scope: TenantScope,
+        candidate_id: int,
+        filename: str | None,
+        content: bytes,
         evidence: list[str] | None = None,
     ) -> CvUploadResult:
         candidate = self.service.attach_cv(scope, candidate_id, filename, content, evidence)

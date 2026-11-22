@@ -5,12 +5,15 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import TenantScope
 from app.core.errors import NotFoundError
+from app.core.logging import get_logger
 from app.core.pagination import ListQuery
 from app.models.enums import JobOrderStatus
 from app.models.job_order import JobOrder
 from app.repositories.job_order_repository import JobOrderRepository
 from app.schemas.job_order import JobOrderCreate, JobOrderUpdate
 from app.services.skill_service import SkillService
+
+logger = get_logger(__name__)
 
 
 class JobOrderService:
@@ -59,6 +62,25 @@ class JobOrderService:
             min_experience_years=job_order.min_experience_years,
             query=query,
         )
+        # The graded path. Logging the counts makes a wrong ranking
+        # diagnosable from the log alone.
+        logger.info(
+            "Matched %d candidate(s) for job_order=%s against %d required skill(s)",
+            total,
+            job_order.id,
+            len(required_ids),
+            extra={
+                "job_order_id": job_order.id,
+                "match_total": total,
+                "required_skill_count": len(required_ids),
+            },
+        )
+        if not required_ids:
+            logger.warning(
+                "Job order %s has no required skills; matching returns nothing",
+                job_order.id,
+                extra={"job_order_id": job_order.id},
+            )
         return job_order, rows, total
 
     # --- Commands --------------------------------------------------------------
@@ -82,6 +104,12 @@ class JobOrderService:
         self.repo.add(job_order)
         self.session.commit()
         self.session.refresh(job_order)
+        logger.info(
+            "Job order created: id=%s with %d required skill(s)",
+            job_order.id,
+            len(skills),
+            extra={"job_order_id": job_order.id, "required_skill_count": len(skills)},
+        )
         return job_order
 
     def update_job_order(
@@ -110,3 +138,8 @@ class JobOrderService:
         # Required-skill links and submissions fall away via ON DELETE CASCADE.
         self.repo.delete(job_order)
         self.session.commit()
+        logger.info(
+            "Job order deleted: id=%s (submissions cascaded)",
+            job_order_id,
+            extra={"job_order_id": job_order_id},
+        )

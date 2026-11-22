@@ -84,13 +84,16 @@ def parse_cv(filename: str | None, content: bytes) -> CvParseResult:
         logger.info("DOCX text extracted")
 
     draft = generate_json(
-        CvParseResult, PROMPT, document,
+        CvParseResult,
+        PROMPT,
+        document,
         "The CV could not be autofilled. Try again or enter the details manually.",
     )
     if upload.mime_type != PDF_MIME:
         source = " ".join(document["text"].split())
         draft.evidence = [
-            item for item in draft.evidence
+            item
+            for item in draft.evidence
             if (excerpt := " ".join(item.split())) and excerpt in source
         ]
     logger.info("CV draft ready skills=%d evidence=%d", len(draft.skills), len(draft.evidence))

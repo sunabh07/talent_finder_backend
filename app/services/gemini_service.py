@@ -43,7 +43,9 @@ def generate_json(
         response.raise_for_status()
         logger.info(
             "Gemini response received operation=%s status=%d elapsed=%.2fs",
-            operation, response.status_code, monotonic() - started,
+            operation,
+            response.status_code,
+            monotonic() - started,
         )
         candidate = response.json()["candidates"][0]
         if candidate.get("finishReason") != "STOP":
@@ -55,7 +57,9 @@ def generate_json(
         code = error.response.status_code
         logger.warning(
             "Gemini rejected request operation=%s status=%d elapsed=%.2fs",
-            operation, code, monotonic() - started,
+            operation,
+            code,
+            monotonic() - started,
         )
         if code == 429:
             raise AiUnavailableError("Gemini rate limit reached. Try again shortly.") from None
@@ -64,14 +68,17 @@ def generate_json(
     except httpx.RequestError as error:
         logger.warning(
             "Gemini transport failure operation=%s error=%s elapsed=%.2fs",
-            operation, type(error).__name__, monotonic() - started,
+            operation,
+            type(error).__name__,
+            monotonic() - started,
         )
         if isinstance(error, httpx.TimeoutException):
             raise AiUnavailableError("Gemini timed out. Try again or continue manually.") from None
     except (ValueError, KeyError, IndexError, TypeError, AttributeError) as error:
         logger.warning(
             "Gemini output validation failed operation=%s error=%s",
-            operation, type(error).__name__,
+            operation,
+            type(error).__name__,
         )
     else:
         logger.info("Gemini output validated operation=%s", operation)

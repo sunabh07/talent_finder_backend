@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     # A comma-separated string is friendlier to read and to document.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # --- Logging -----------------------------------------------------------
+    # DEBUG | INFO | WARNING | ERROR. INFO gives one line per request plus
+    # business events; DEBUG adds detail from the application's own modules.
+    log_level: str = "INFO"
+    # text (readable in a terminal) | json (one object per line, for an aggregator)
+    log_format: str = "text"
+    # Echo every SQL statement. Very noisy; off unless you are debugging a query.
+    log_sql: bool = False
+
     # --- Pagination --------------------------------------------------------
     default_page_size: int = 10
     max_page_size: int = 100

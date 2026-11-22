@@ -40,9 +40,15 @@ def test_cv_draft_evidence_and_replacement(client, two_tenants, monkeypatch):
         else:
             assert document["inlineData"]["mimeType"] == "application/pdf"
         return CvParseResult(
-            full_name="Demo Candidate", location="Pune", total_experience_years=3,
-            skills=["FastAPI"], email=None, phone=None, current_role=None,
-            professional_summary=None, evidence=[EXCERPT, "Invented excerpt"],
+            full_name="Demo Candidate",
+            location="Pune",
+            total_experience_years=3,
+            skills=["FastAPI"],
+            email=None,
+            phone=None,
+            current_role=None,
+            professional_summary=None,
+            evidence=[EXCERPT, "Invented excerpt"],
         )
 
     monkeypatch.setattr(cv_parse_service, "generate_json", parse)
@@ -51,7 +57,8 @@ def test_cv_draft_evidence_and_replacement(client, two_tenants, monkeypatch):
     )
     assert rejected.status_code == 422
     parsed_pdf = client.post(
-        f"{CANDIDATES}/cv/parse", headers=tenant,
+        f"{CANDIDATES}/cv/parse",
+        headers=tenant,
         files={"file": ("demo.pdf", b"%PDF-1.4\n%%EOF\n")},
     )
     assert parsed_pdf.status_code == 200, parsed_pdf.text
@@ -65,18 +72,30 @@ def test_cv_draft_evidence_and_replacement(client, two_tenants, monkeypatch):
     assert created.status_code == 201, created.text
     candidate_id = created.json()["id"]
     cv_url = f"{CANDIDATES}/{candidate_id}/cv"
-    attached = client.post(cv_url, headers=tenant, files=upload, data={
-        "evidence": json.dumps(excerpts),
-    })
+    attached = client.post(
+        cv_url,
+        headers=tenant,
+        files=upload,
+        data={
+            "evidence": json.dumps(excerpts),
+        },
+    )
     assert attached.status_code == 200, attached.text
 
     form["full_name"] = "Other Demo Candidate"
     assert client.post(CANDIDATES, headers=tenant, json=form).status_code == 201
-    job = client.post(JOBS, headers=tenant, json={
-        "job_title": "FastAPI Developer", "location": "Pune", "min_experience_years": 1,
-        "number_of_openings": 1, "required_skills": ["FastAPI"],
-        "job_description": f"{JOB_REQUIREMENT}. Maintain API documentation.",
-    })
+    job = client.post(
+        JOBS,
+        headers=tenant,
+        json={
+            "job_title": "FastAPI Developer",
+            "location": "Pune",
+            "min_experience_years": 1,
+            "number_of_openings": 1,
+            "required_skills": ["FastAPI"],
+            "job_description": f"{JOB_REQUIREMENT}. Maintain API documentation.",
+        },
+    )
     assert job.status_code == 201, job.text
     job_url = f"{JOBS}/{job.json()['id']}"
 
@@ -85,24 +104,38 @@ def test_cv_draft_evidence_and_replacement(client, two_tenants, monkeypatch):
         request = json.loads(document["text"])
         assert JOB_REQUIREMENT in request["job_description"]
         assert request["candidates"] == [{"candidate_id": candidate_id, "excerpts": [EXCERPT]}]
-        return EvidenceSelections.model_validate({"selections": [
-            {"candidate_id": candidate_id, "excerpt_index": 3, "job_requirement": "FastAPI"},
-            {"candidate_id": candidate_id, "excerpt_index": 0, "job_requirement": "Kubernetes"},
+        return EvidenceSelections.model_validate(
             {
-                "candidate_id": candidate_id,
-                "excerpt_index": 0,
-                "job_requirement": JOB_REQUIREMENT.lower(),
-            },
-        ]})
+                "selections": [
+                    {
+                        "candidate_id": candidate_id,
+                        "excerpt_index": 3,
+                        "job_requirement": "FastAPI",
+                    },
+                    {
+                        "candidate_id": candidate_id,
+                        "excerpt_index": 0,
+                        "job_requirement": "Kubernetes",
+                    },
+                    {
+                        "candidate_id": candidate_id,
+                        "excerpt_index": 0,
+                        "job_requirement": JOB_REQUIREMENT.lower(),
+                    },
+                ]
+            }
+        )
 
     monkeypatch.setattr(job_cv_evidence_service, "generate_json", select_evidence)
     notes = client.post(f"{job_url}/cv-evidence", headers=tenant)
     assert notes.status_code == 200, notes.text
-    assert notes.json() == [{
-        "candidate_id": candidate_id,
-        "excerpt": EXCERPT,
-        "job_requirement": JOB_REQUIREMENT,
-    }]
+    assert notes.json() == [
+        {
+            "candidate_id": candidate_id,
+            "excerpt": EXCERPT,
+            "job_requirement": JOB_REQUIREMENT,
+        }
+    ]
     assert client.post(f"{job_url}/cv-evidence", headers=other_tenant).status_code == 404
     assert client.get(f"{job_url}/matches", headers=tenant).json()["total"] == 2
 

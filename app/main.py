@@ -1,11 +1,16 @@
 """FastAPI application factory."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
+from app.core.logging import configure_logging, get_logger
+from app.core.middleware import RequestContextMiddleware
 
 DESCRIPTION = """
 Multi-tenant recruiter portal API.
@@ -20,7 +25,26 @@ response schemas.
 """
 
 
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Startup / shutdown. The modern replacement for @app.on_event."""
+    logger.info(
+        "%s starting | env=%s | ai=%s | log_level=%s",
+        settings.app_name,
+        settings.environment,
+        "enabled" if settings.ai_enabled else "disabled",
+        settings.log_level.upper(),
+    )
+    yield
+    logger.info("%s shutting down", settings.app_name)
+
+
 def create_app() -> FastAPI:
+    configure_logging()
+
     app = FastAPI(
         title=settings.app_name,
         description=DESCRIPTION,
@@ -28,7 +52,12 @@ def create_app() -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
+
+    # Added last so it runs first: every other layer's log lines then carry
+    # the request id this middleware sets.
+    app.add_middleware(RequestContextMiddleware)
 
     app.add_middleware(
         CORSMiddleware,

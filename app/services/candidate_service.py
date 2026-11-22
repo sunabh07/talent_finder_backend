@@ -5,11 +5,14 @@ from sqlalchemy.orm import Session
 from app.core.deps import TenantScope
 from app.core.errors import NotFoundError, ValidationError
 from app.core.files import ValidatedUpload, validate_cv
+from app.core.logging import get_logger
 from app.core.pagination import ListQuery
 from app.models.candidate import Candidate
 from app.repositories.candidate_repository import CandidateRepository
 from app.schemas.candidate import CandidateCreate, CandidateUpdate
 from app.services.skill_service import SkillService
+
+logger = get_logger(__name__)
 
 
 class CandidateService:
@@ -58,6 +61,12 @@ class CandidateService:
         self.repo.add(candidate)
         self.session.commit()
         self.session.refresh(candidate)
+        logger.info(
+            "Candidate created: id=%s with %d skill(s)",
+            candidate.id,
+            len(skills),
+            extra={"candidate_id": candidate.id, "skill_count": len(skills)},
+        )
         return candidate
 
     def update_candidate(
@@ -81,6 +90,12 @@ class CandidateService:
         self.session.flush()
         self.session.commit()
         self.session.refresh(candidate)
+        logger.info(
+            "Candidate updated: id=%s fields=%s",
+            candidate.id,
+            sorted(changes) + (["skills"] if raw_skills is not None else []),
+            extra={"candidate_id": candidate.id},
+        )
         return candidate
 
     def delete_candidate(self, scope: TenantScope, candidate_id: int) -> None:
@@ -89,11 +104,21 @@ class CandidateService:
         # shared skill rows themselves are protected by RESTRICT.
         self.repo.delete(candidate)
         self.session.commit()
+        # Worth a log line: this cascades to skill links and submissions.
+        logger.info(
+            "Candidate deleted: id=%s (submissions cascaded)",
+            candidate_id,
+            extra={"candidate_id": candidate_id},
+        )
 
     # --- CV --------------------------------------------------------------
 
     def attach_cv(
-        self, scope: TenantScope, candidate_id: int, filename: str | None, content: bytes,
+        self,
+        scope: TenantScope,
+        candidate_id: int,
+        filename: str | None,
+        content: bytes,
         evidence: list[str] | None = None,
     ) -> Candidate:
         candidate = self.get_candidate(scope, candidate_id)

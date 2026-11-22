@@ -20,9 +20,12 @@ trips rather than twenty.
 from sqlalchemy.orm import Session
 
 from app.core.errors import ValidationError
+from app.core.logging import get_logger
 from app.core.normalization import normalize_display_name, normalize_skill
 from app.models.skill import Skill
 from app.repositories.skill_repository import SkillRepository
+
+logger = get_logger(__name__)
 
 MAX_SKILLS_PER_RECORD = 50
 
@@ -66,6 +69,13 @@ class SkillService:
             skill = existing.get(normalized) or aliases.get(normalized)
             if skill is None:
                 skill = self.repo.add(Skill(name=display, normalized_name=normalized))
+                # New vocabulary entries are worth seeing: a flood of them
+                # usually means typos reaching the canonical skill list.
+                logger.info(
+                    "New skill added to the shared vocabulary: %r",
+                    display,
+                    extra={"skill_name": display, "normalized_name": normalized},
+                )
             # Two inputs can resolve to one skill ("React" and "reactjs"), so
             # deduplicate again after resolution or the link insert will fail.
             if skill.id not in seen_ids:

@@ -60,7 +60,9 @@ def job_cv_evidence(
         ],
     }
     result = generate_json(
-        EvidenceSelections, PROMPT, {"text": json.dumps(request)},
+        EvidenceSelections,
+        PROMPT,
+        {"text": json.dumps(request)},
         "CV evidence is temporarily unavailable. You can still review matches and shortlist.",
     )
     notes: dict[int, JobCvEvidence] = {}

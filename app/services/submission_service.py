@@ -5,11 +5,14 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import TenantScope
 from app.core.errors import NotFoundError
+from app.core.logging import get_logger
 from app.core.pagination import ListQuery
 from app.models.submission import Submission
 from app.repositories.candidate_repository import CandidateRepository
 from app.repositories.job_order_repository import JobOrderRepository
 from app.repositories.submission_repository import SubmissionRepository
+
+logger = get_logger(__name__)
 
 
 class SubmissionService:
@@ -65,4 +68,19 @@ class SubmissionService:
         )
         self.session.commit()
         self.session.refresh(submission)
+        # Distinguishing the two outcomes matters: a burst of "already
+        # shortlisted" is the UI double-firing, which is worth noticing.
+        logger.info(
+            "Shortlist %s: candidate=%s job_order=%s submission=%s",
+            "no-op (already shortlisted)" if already_existed else "created",
+            candidate.id,
+            job_order.id,
+            submission.id,
+            extra={
+                "candidate_id": candidate.id,
+                "job_order_id": job_order.id,
+                "submission_id": submission.id,
+                "idempotent_hit": already_existed,
+            },
+        )
         return submission, already_existed
